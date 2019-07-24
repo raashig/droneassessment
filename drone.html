@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Page Title</title>
+</head>
+<style>
+    #space{
+    border: 1x solid black;
+    background-image: url("square-grid.jpg");
+}
+</style>
+<body>
+
+  <canvas id="space"></canvas>
+
+</body>
+<script>
+//just a utility
+var angle = 0;
+function image(url, callback){
+    var img = new Image();
+    if(typeof callback === "function"){
+        img.onload = function(){
+            //just to ensure that the callback is executed async
+            setTimeout(function(){ callback(img, url) }, 0)
+        }
+    }
+    img.src = url;
+    return img;
+}
+
+//a utility to keep a value constrained between a min and a max
+function clamp(v, min, max){
+    return v > min? v < max? v: max: min;
+}
+
+//returns a function that can be called with a keyCode or one of the known aliases 
+//and returns true||false wether the button is down
+var isKeyDown = (function(aliases){
+    for(var i=256, keyDown=Array(i); i--; )keyDown[i]=false;
+    var handler = function(e){ 
+        if(e.keyCode === 17 &&  e.type === "keydown"){
+            console.log('spaceperson:::', spaceperson)
+            // ctx.clearRect(0, 0, canvas.width, canvas.height);
+          angle++;
+          if(angle===360){
+           angle=0;
+          }
+          spaceperson.image.style.transform = "rotate("+angle+"deg)";
+        //   ctx.rotate(Math.PI/angle);
+        }
+        keyDown[e.keyCode] = e.type === "keydown";
+        e.preventDefault();  //scrolling; if you have to suppress it
+    };
+
+    addEventListener("keydown", handler, false);
+    addEventListener("keyup", handler, false);
+
+    return function(key){
+        return(true === keyDown[ key in aliases? aliases[ key ]: key ])
+    }
+})({
+    //some aliases, to be extended
+    up: 38,
+    down: 40,
+    left: 37,
+    right: 39
+});
+
+
+
+// Get the canvas and context
+var canvas = document.getElementById("space"); 
+canvas.width = 500;
+canvas.height = 500;
+var ctx = canvas.getContext("2d");
+
+//the acutal image is just a little-part of what defines your figue
+var spaceperson = {
+    image: image("./drone.jpeg", function(img){ 
+        spaceperson.width = img.naturalWidth;
+        spaceperson.height = img.naturalHeight;
+        console.log('dddddddddd')
+        //start the rendering by calling update
+        update();
+    }),
+
+    //position
+    x: 0, y: 0,
+    width: 0, height: 0,
+
+    speed: 200  // 200px/s
+};
+
+var lastCall = 0;  //to calculate the (real) time between two update-calls
+//the render-fucntion
+function update(){
+    //taking account for (sometimes changing) framerates
+    var now = Date.now(), time = lastCall|0 && (now-lastCall)/1000;
+    lastCall = now;
+    requestAnimationFrame(update);
+
+    var sp = spaceperson,
+        speed = sp.speed;
+
+    //checking the pressed buttons and calculates the direction
+    //two opposite buttons cancel out each other, like left and right
+    var dx = (isKeyDown('right') - isKeyDown('left')) * time, 
+        dy = (isKeyDown('down') - isKeyDown('up')) * time;
+
+    //fix the speed for diagonals
+    if(dx && dy) speed *= 0.7071067811865475;   // * 1 / Math.sqrt(2)
+
+    if(dx) { //there is some movement on the x-axes
+        sp.x = clamp(
+            //calculate the new x-Position
+            //currentPos + direction * speed
+            sp.x + dx * sp.speed, 
+
+            //restraining the result to the bounds of the map
+            0, canvas.width - sp.width
+        );
+    }
+
+    //same for y
+    if(dy) sp.y = clamp(sp.y + dy * sp.speed, 0, canvas.height - sp.height);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(sp.image, sp.x, sp.y);
+}
+</script>
+</html>
